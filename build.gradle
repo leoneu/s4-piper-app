@@ -82,12 +82,64 @@ libraries = [
         ]
 
 
+/* We define a platform configuration because we don't need transitive dependencies 
+ * to compile S4 apps. We only need the API. We should also exclude platform libraries 
+ * form the s4 archive file. 
+ */
+//configurations {
+//    platform {
+//        description = 'S4 platform dependencies.'
+//        transitive = false
+//        extendsFrom compile
+//    }
+//}
+//
+//dependencies {
+//
+//    /* S4 Platform. */
+//    compile( libraries.s4_base ) {
+//        transitive = false
+//    }
+//    compile( libraries.s4_core ) {
+//        transitive = false
+//    }
+//
+//    /* Logging. */
+//    compile( libraries.slf4j )
+//    compile( libraries.logback_core )
+//    compile( libraries.logback_classic )
+//
+//    /* Commons. */
+//    compile( libraries.commons_io )
+//    compile( libraries.commons_config )
+//    compile( libraries.commons_coll )
+//
+//    /* Misc. */
+//    compile( libraries.jcip )
+//
+//    /* Testing. */
+//    testCompile( libraries.junit )
+//}
+
+List s4Libs = [
+    libraries.s4_base,
+    libraries.s4_core
+]
+
+configurations {
+    platform {
+        description = 'S4 platform dependencies.'
+        transitive = false
+    }
+}
 
 dependencies {
 
-    /* S4 Platform. */
-    compile( libraries.s4_base )
-    compile( libraries.s4_core )
+    /* S4 Platform. We only need the API, not the transitive dependencies. */
+    s4Libs.each {  module ->
+        compile( module ) { transitive = false }
+        platform( module ) { transitive = false }
+    }
 
     /* Logging. */
     compile( libraries.slf4j )
@@ -115,11 +167,23 @@ manifest.mainAttributes(
         'S4-App-Class': 'HelloApp'
         )
 
-// TODO: Started to work on the archive, this is not right yet. Should have the manifest we want plus the app jar plus dep jars minus s4 platform jars. extension must be s4r.
-task s4r(type: Jar) {
-    from configurations.runtime
 
-    //baseName = 'customName'
+// TODO: haven't looked at the manifest yet.
+// TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app 
+// that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
+task s4r(type: Jar) {
+    from ( configurations.runtime - configurations.platform )
+    from configurations.archives.allArtifactFiles
+
+    extension = 's4r' // wow! this works!
+}
+
+s4r.dependsOn(jar)
+
+s4r << {
+    ( configurations.runtime - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
+    configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
+    //configurations.compile.dependencies.each { dep -> println dep.name }
 }
 
 /* Generates the gradlew scripts.
