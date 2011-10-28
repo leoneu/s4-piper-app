@@ -1,0 +1,27 @@
+# Eclipse meta-information
+.project
+.classpath
+.settings
+
+# Build directory
+target/
+build/
+bin/
+doc/
+tmp/
+pepe/
+
+# SVN
+.svn
+
+# Gradle files
+.gradle
+
+# Backup files
+*~
+
+# Misc hidden files
+.DS_Store 
+
+# Java
+*.class
