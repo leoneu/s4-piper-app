@@ -18,6 +18,8 @@
  * Apache S4 Application Build File
  *
  * Use this script to buils and package S4 apps.
+ * 
+ * Run 'gradle install' on the s4 project to publish to your local maven repo.
  */
 
 description = 'Apache S4 App'
@@ -86,40 +88,6 @@ libraries = [
  * to compile S4 apps. We only need the API. We should also exclude platform libraries 
  * form the s4 archive file. 
  */
-//configurations {
-//    platform {
-//        description = 'S4 platform dependencies.'
-//        transitive = false
-//        extendsFrom compile
-//    }
-//}
-//
-//dependencies {
-//
-//    /* S4 Platform. */
-//    compile( libraries.s4_base ) {
-//        transitive = false
-//    }
-//    compile( libraries.s4_core ) {
-//        transitive = false
-//    }
-//
-//    /* Logging. */
-//    compile( libraries.slf4j )
-//    compile( libraries.logback_core )
-//    compile( libraries.logback_classic )
-//
-//    /* Commons. */
-//    compile( libraries.commons_io )
-//    compile( libraries.commons_config )
-//    compile( libraries.commons_coll )
-//
-//    /* Misc. */
-//    compile( libraries.jcip )
-//
-//    /* Testing. */
-//    testCompile( libraries.junit )
-//}
 
 List s4Libs = [
     libraries.s4_base,
@@ -169,7 +137,7 @@ manifest.mainAttributes(
 
 
 // TODO: haven't looked at the manifest yet.
-// TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app 
+// TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app
 // that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
 task s4r(type: Jar) {
     from ( configurations.runtime - configurations.platform )
