@@ -30,7 +30,7 @@ archivesBaseName = 'hello'
 distRootFolder = "$archivesBaseName-${-> version}"
 
 /* Set the destination where we want to install the apps. */
-s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var? 
+s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var?
 
 // Append the suffix 'SNAPSHOT' when the build is not for release.
 version = new Version(major: 0, minor: 0, bugfix: 0, isRelease: false)
@@ -99,9 +99,12 @@ List s4Libs = [
 ]
 
 configurations {
-    platform {
-        description = 'S4 platform dependencies.'
-        transitive = false
+    s4API {
+        description = 'S4 platform API dependencies.'
+    }
+    
+    s4All {
+        description = 'S4 platform including all dependencies.'
     }
 }
 
@@ -110,7 +113,8 @@ dependencies {
     /* S4 Platform. We only need the API, not the transitive dependencies. */
     s4Libs.each {  module ->
         compile( module ) { transitive = false }
-        platform( module ) { transitive = false }
+        s4API( module )
+        s4All( module )
     }
 
     /* Logging. */
@@ -130,6 +134,9 @@ dependencies {
     testCompile( libraries.junit )
 }
 
+/* Set the manifest attributes for the S4 archive here.
+ *  TODO: seprate custom properties from std ones and set custome properties at the top of the build script. 
+ */
 manifest.mainAttributes(
         provider: 'gradle',
         'Implementation-Url': 'http://incubator.apache.org/projects/s4.html',
@@ -140,31 +147,36 @@ manifest.mainAttributes(
         )
 
 
-// TODO: haven't looked at the manifest yet.
+// useful links:
+// http://gradle.1045684.n5.nabble.com/Controlling-Transitive-Dependencies-td4846755.html
+
+appDependencies = ( configurations.compile - configurations.s4API )
+
+deployableDependencies = ( configurations.compile - configurations.s4All )
+
+
 // TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app
 // that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
-
-/* This is my first version that creates a jar of jars. Below I have a version based on the fat jar example in the Gradle cookbook. */
-//task s4r(type: Jar) {
-//    from ( configurations.runtime - configurations.platform )
-//    from configurations.archives.allArtifactFiles
-//
-//    extension = 's4r' // wow! this works!
-//}
 
 /* This task will extract all the class files and create a fat jar. We se the manifest and the extension to make it an S4 archive file. */
 task s4r(type: Jar) {
     //from ( configurations.runtime - configurations.platform )
-    from { (configurations.compile - configurations.platform ).collect { it.isDirectory() ? it : zipTree(it) } }
+    from { appDependencies.collect { it.isDirectory() ? it : zipTree(it) } }
     from { configurations.archives.allArtifactFiles.collect { it.isDirectory() ? it : zipTree(it) } }
     manifest = project.manifest
     extension = 's4r' // wow! this works!
 }
 
+/* List the artifacts that will added to the s4 archive (and expanded if needed). */
 s4r << {
     dependsOn jar
-    ( configurations.runtime - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
+   // ( configurations.compile - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
+    appDependencies.each { File file -> println 'Adding: ' + file.name }
     configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
+    
+    configurations.s4All.each { File file -> println 's4All: ' + file.name }
+    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }
+    
 }
 
 /* Install the S4 archive to the install directory. */
