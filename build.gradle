@@ -20,6 +20,8 @@
  * Use this script to buils and package S4 apps.
  * 
  * Run 'gradle install' on the s4 project to publish to your local maven repo.
+ * 
+ * TODO: This should probably be distributed as an s4 plugin for Gradle.
  */
 
 description = 'Apache S4 App'
@@ -27,6 +29,8 @@ defaultTasks 'assemble'
 archivesBaseName = 'hello'
 distRootFolder = "$archivesBaseName-${-> version}"
 
+/* Set the destination where we want to install the apps. */
+s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var? 
 
 // Append the suffix 'SNAPSHOT' when the build is not for release.
 version = new Version(major: 0, minor: 0, bugfix: 0, isRelease: false)
@@ -139,19 +143,35 @@ manifest.mainAttributes(
 // TODO: haven't looked at the manifest yet.
 // TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app
 // that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
-task s4r(type: Jar) {
-    from ( configurations.runtime - configurations.platform )
-    from configurations.archives.allArtifactFiles
 
+/* This is my first version that creates a jar of jars. Below I have a version based on the fat jar example in the Gradle cookbook. */
+//task s4r(type: Jar) {
+//    from ( configurations.runtime - configurations.platform )
+//    from configurations.archives.allArtifactFiles
+//
+//    extension = 's4r' // wow! this works!
+//}
+
+/* This task will extract all the class files and create a fat jar. We se the manifest and the extension to make it an S4 archive file. */
+task s4r(type: Jar) {
+    //from ( configurations.runtime - configurations.platform )
+    from { (configurations.compile - configurations.platform ).collect { it.isDirectory() ? it : zipTree(it) } }
+    from { configurations.archives.allArtifactFiles.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest = project.manifest
     extension = 's4r' // wow! this works!
 }
 
-s4r.dependsOn(jar)
-
 s4r << {
+    dependsOn jar
     ( configurations.runtime - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
     configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
-    //configurations.compile.dependencies.each { dep -> println dep.name }
+}
+
+/* Install the S4 archive to the install directory. */
+task install (type: Copy) {
+    dependsOn s4r
+    from s4r.archivePath
+    into s4AppInstallDir
 }
 
 /* Generates the gradlew scripts.
