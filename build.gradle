@@ -22,6 +22,9 @@
  * Run 'gradle install' on the s4 project to publish to your local maven repo.
  * 
  * TODO: This should probably be distributed as an s4 plugin for Gradle.
+ * TODO: There seem to be to be similarities with the war and jetty plugins. (war -> s4r, jetty -> s4Run). 
+ * We should make it easy to test the app from this script by a running a test task that starts and stops 
+ * an s4 server. See: http://www.gradle.org/releases/1.0-milestone-3/docs/userguide/userguide_single.html#war_plugin
  */
 
 description = 'Apache S4 App'
@@ -91,6 +94,10 @@ libraries = [
 /* We define a platform configuration because we don't need transitive dependencies 
  * to compile S4 apps. We only need the API. We should also exclude platform libraries 
  * form the s4 archive file. 
+ * 
+ * Note that the war plugin has a configuration providedCompile so it looks like thet list 
+ * the external dependencies explicitly. Not sure I understand this since it would be hard 
+ * to maintain. The list fo provided modules should come from the s4 project somehow.
  */
 
 List s4Libs = [
@@ -159,6 +166,7 @@ deployableDependencies = ( configurations.compile - configurations.s4All )
 // that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
 
 /* This task will extract all the class files and create a fat jar. We se the manifest and the extension to make it an S4 archive file. */
+// TODO: exclude schenma files as needed (not critical) see: http://forums.gradle.org/gradle/topics/using_gradle_to_fat_jar_a_spring_project 
 task s4r(type: Jar) {
     //from ( configurations.runtime - configurations.platform )
     from { appDependencies.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -175,8 +183,7 @@ s4r << {
     configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
     
     configurations.s4All.each { File file -> println 's4All: ' + file.name }
-    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }
-    
+    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }   
 }
 
 /* Install the S4 archive to the install directory. */
