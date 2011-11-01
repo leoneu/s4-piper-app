@@ -26,11 +26,14 @@
  * We should make it easy to test the app from this script by a running a test task that starts and stops 
  * an s4 server. See: http://www.gradle.org/releases/1.0-milestone-3/docs/userguide/userguide_single.html#war_plugin
  * 
+ * This is an interesting discussion:
+ * http://gradle.1045684.n5.nabble.com/Exclude-properties-file-from-war-td3365147.html
+ * 
  */
 
- /* Set the destination where we want to install the apps. */
- s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var?
- 
+/* Set the destination where we want to install the apps. */
+s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var?
+
 s4Version = '0.5.0-SNAPSHOT'
 description = 'Apache S4 App'
 defaultTasks 'assemble'
@@ -109,13 +112,9 @@ List s4Libs = [
 ]
 
 configurations {
-    s4API {
-        description = 'S4 platform API dependencies.'
-    }
-    
-    s4All {
-        description = 'S4 platform including all dependencies.'
-    }
+    s4API { description = 'S4 platform API dependencies.' }
+
+    s4All { description = 'S4 platform including all dependencies.' }
 }
 
 dependencies {
@@ -127,6 +126,10 @@ dependencies {
         s4All( module )
     }
 
+    /* This dependency is not used by s4 so it should be added to s4r. */
+    compile( libraries.jakarta_regexp)
+    compile( libraries.ejml)
+    
     /* Logging. */
     compile( libraries.slf4j )
     compile( libraries.logback_core )
@@ -170,7 +173,7 @@ deployableDependencies = ( configurations.compile - configurations.s4All )
 // that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
 
 /* This task will extract all the class files and create a fat jar. We se the manifest and the extension to make it an S4 archive file. */
-// TODO: exclude schenma files as needed (not critical) see: http://forums.gradle.org/gradle/topics/using_gradle_to_fat_jar_a_spring_project 
+// TODO: exclude schenma files as needed (not critical) see: http://forums.gradle.org/gradle/topics/using_gradle_to_fat_jar_a_spring_project
 task s4r(type: Jar) {
     //from ( configurations.runtime - configurations.platform )
     from { appDependencies.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -181,13 +184,17 @@ task s4r(type: Jar) {
 
 /* List the artifacts that will added to the s4 archive (and expanded if needed). */
 s4r << {
-    dependsOn jar
-   // ( configurations.compile - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
+    //dependsOn jar
+    // ( configurations.compile - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
     appDependencies.each { File file -> println 'Adding: ' + file.name }
     configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
-    
+
+    /* This is for debugging. */
     configurations.s4All.each { File file -> println 's4All: ' + file.name }
-    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }   
+    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }
+    
+    // more debugging statements.
+    //sourceSets.main.compileClasspath.each { File file -> println 'compileClasspath: ' + file.name }
 }
 
 /* Install the S4 archive to the install directory. */
