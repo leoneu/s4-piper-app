@@ -121,7 +121,7 @@ dependencies {
 
     /* S4 Platform. We only need the API, not the transitive dependencies. */
     s4Libs.each {  module ->
-        compile( module ) { transitive = false }
+        compile( module ) //{ transitive = false }
         s4API( module )
         s4All( module )
     }
