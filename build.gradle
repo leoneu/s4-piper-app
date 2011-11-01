@@ -25,15 +25,18 @@
  * TODO: There seem to be to be similarities with the war and jetty plugins. (war -> s4r, jetty -> s4Run). 
  * We should make it easy to test the app from this script by a running a test task that starts and stops 
  * an s4 server. See: http://www.gradle.org/releases/1.0-milestone-3/docs/userguide/userguide_single.html#war_plugin
+ * 
  */
 
+ /* Set the destination where we want to install the apps. */
+ s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var?
+ 
+s4Version = '0.5.0-SNAPSHOT'
 description = 'Apache S4 App'
 defaultTasks 'assemble'
 archivesBaseName = 'hello'
 distRootFolder = "$archivesBaseName-${-> version}"
 
-/* Set the destination where we want to install the apps. */
-s4AppInstallDir = "/tmp/s4Apps" // TODO: decide how to standarize dirs, use env var?
 
 // Append the suffix 'SNAPSHOT' when the build is not for release.
 version = new Version(major: 0, minor: 0, bugfix: 0, isRelease: false)
@@ -60,8 +63,8 @@ repositories {
 
 /* All project libraries must be defined here. */
 libraries = [
-            s4_base:            'org.apache.s4:s4-base:0.5.0-SNAPSHOT',
-            s4_core:            'org.apache.s4:s4-core:0.5.0-SNAPSHOT',
+            s4_base:            'org.apache.s4:s4-base:' + s4Version,
+            s4_core:            'org.apache.s4:s4-core:'  + s4Version,
             json:               'org.json:json:20090211',
             guava:              'com.google.guava:guava:10.0.1',
             gson:               'com.google.code.gson:gson:1.6',
@@ -150,7 +153,8 @@ manifest.mainAttributes(
         'Implementation-Version': version,
         'Implementation-Vendor': 'Apache S4',
         'Implementation-Vendor-Id': 's4app',
-        'S4-App-Class': 'HelloApp'
+        'S4-App-Class': 'HelloApp',
+        'S4-Version': s4Version
         )
 
 
