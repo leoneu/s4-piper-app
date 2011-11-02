@@ -156,7 +156,7 @@ manifest.mainAttributes(
         'Implementation-Version': version,
         'Implementation-Vendor': 'Apache S4',
         'Implementation-Vendor-Id': 's4app',
-        'S4-App-Class': 's4App.HelloApp', // << TODO: we should set this from the source code or validate that the class exist in the s4r.
+        'S4-App-Class': 's4app.HelloApp', // << TODO: we should set this from the source code or validate that the class exist in the s4r.
         'S4-Version': s4Version
         )
 
