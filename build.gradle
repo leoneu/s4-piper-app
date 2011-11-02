@@ -48,6 +48,9 @@ group = 'org.apache.s4'
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
+/* The app classname is set automatically from the source files. */
+def appClassname = ''
+
 /* Set Java version. */
 sourceCompatibility = 1.6
 targetCompatibility = 1.6
@@ -97,13 +100,10 @@ libraries = [
         ]
 
 
-/* We define a platform configuration because we don't need transitive dependencies 
+/* We define the s4API configuration because we don't need transitive dependencies 
  * to compile S4 apps. We only need the API. We should also exclude platform libraries 
  * form the s4 archive file. 
  * 
- * Note that the war plugin has a configuration providedCompile so it looks like thet list 
- * the external dependencies explicitly. Not sure I understand this since it would be hard 
- * to maintain. The list fo provided modules should come from the s4 project somehow.
  */
 
 List s4Libs = [
@@ -112,10 +112,7 @@ List s4Libs = [
 ]
 
 configurations {
-    s4API { description = 'S4 platform API dependencies.' }
-
-    s4All { description = 'S4 platform including all dependencies.' }
-}
+    s4API { description = 'S4 platform API dependencies.' }}
 
 dependencies {
 
@@ -123,13 +120,12 @@ dependencies {
     s4Libs.each {  module ->
         compile( module ) //{ transitive = false }
         s4API( module )
-        s4All( module )
     }
 
     /* This dependency is not used by s4 so it should be added to s4r. */
     compile( libraries.jakarta_regexp)
     compile( libraries.ejml)
-    
+
     /* Logging. */
     compile( libraries.slf4j )
     compile( libraries.logback_core )
@@ -148,7 +144,7 @@ dependencies {
 }
 
 /* Set the manifest attributes for the S4 archive here.
- *  TODO: seprate custom properties from std ones and set custome properties at the top of the build script. 
+ *  TODO: separate custom properties from std ones and set custom properties at the top of the build script. 
  */
 manifest.mainAttributes(
         provider: 'gradle',
@@ -156,45 +152,50 @@ manifest.mainAttributes(
         'Implementation-Version': version,
         'Implementation-Vendor': 'Apache S4',
         'Implementation-Vendor-Id': 's4app',
-        'S4-App-Class': 's4app.HelloApp', // << TODO: we should set this from the source code or validate that the class exist in the s4r.
+        'S4-App-Class': appClassname, // gets set by the s4r task.
         'S4-Version': s4Version
         )
 
-
-// useful links:
-// http://gradle.1045684.n5.nabble.com/Controlling-Transitive-Dependencies-td4846755.html
-
 appDependencies = ( configurations.compile - configurations.s4API )
 
-deployableDependencies = ( configurations.compile - configurations.s4All )
-
-
-// TODO: (optimization for later) to get fancy, we may want to exclude the dependent jars for the app
-// that happen to also be used by the platform. (We can do this by looking at the transitive dependencies.)
-
-/* This task will extract all the class files and create a fat jar. We se the manifest and the extension to make it an S4 archive file. */
+/* This task will extract all the class files and create a fat jar. We set the manifest and the extension to make it an S4 archive file. */
 // TODO: exclude schenma files as needed (not critical) see: http://forums.gradle.org/gradle/topics/using_gradle_to_fat_jar_a_spring_project
 task s4r(type: Jar) {
     dependsOn jar
-    //from ( configurations.runtime - configurations.platform )
     from { appDependencies.collect { it.isDirectory() ? it : zipTree(it) } }
     from { configurations.archives.allArtifactFiles.collect { it.isDirectory() ? it : zipTree(it) } }
     manifest = project.manifest
-    extension = 's4r' // wow! this works!
+    extension = 's4r'
+    
+    /* Set class name in manifest. Parse source files until we find a class that extends App. 
+     * Get fully qualified Java class name and set attribute in Manifest. 
+     */
+    sourceSets.main.allSource.files.each {  File file ->
+        appClassname = getAppClassname(file)
+        if(appClassname != "") {
+            manifest.mainAttributes('S4-App-Class': appClassname)
+        }
+    }
+    
+    if (appClassname == "UNKNOWN") {
+        
+        println "Couldn't find App class in source files...aborting."
+        exit(1)
+    }
 }
 
-/* List the artifacts that will added to the s4 archive (and expanded if needed). */
+/* List the artifacts that will br added to the s4 archive (and explode if needed). */
 s4r << {
-    // ( configurations.compile - configurations.platform ).each { File file -> println 'Adding: ' + file.name }
-    appDependencies.each { File file -> println 'Adding: ' + file.name }
-    configurations.archives.allArtifactFiles.each { File file -> println 'Adding: ' + file.name }
+    appDependencies.each { File file -> println 'Adding to s4 archive: ' + file.name }
+    configurations.archives.allArtifactFiles.each { File file -> println 'Adding to s4 archive: ' + file.name }
 
     /* This is for debugging. */
-    configurations.s4All.each { File file -> println 's4All: ' + file.name }
-    deployableDependencies.each { File file -> println 'Deploy: ' + file.name }
-    
+    //configurations.s4All.each { File file -> println 's4All: ' + file.name }
+    //deployableDependencies.each { File file -> println 'Deploy: ' + file.name }
+
     // more debugging statements.
     //sourceSets.main.compileClasspath.each { File file -> println 'compileClasspath: ' + file.name }
+    
 }
 
 /* Install the S4 archive to the install directory. */
@@ -207,6 +208,30 @@ task install (type: Copy) {
 /* Generates the gradlew scripts.
  http://www.gradle.org/1.0-milestone-3/docs/userguide/gradle_wrapper.html */
 task wrapper(type: Wrapper) { gradleVersion = '1.0-milestone-3' }
+
+
+/* Parse source file to get the app classname so we can use it in the manifest. 
+ * TODO: Use a real Java parser. (This is not skippong comments for example.)
+ */
+def getAppClassname(file) {
+    def classname = "UNKNOWN"
+    lines= file.readLines()
+    for(line in lines) {
+        
+        def pn = line =~ /.*package\s+([\w\.]+)\s*;.*/
+        if(pn) {
+            packageName = pn[0][1]
+        }
+        
+        def an = line =~ /.*public\s+class\s+(\w+)\s+extends.+App.*\{/
+        if (an) {
+            classname = packageName + "." + an[0][1]
+            println "Found app class name: " + classname
+            break
+        }
+    }
+    classname
+}
 
 class Version {
     int major
