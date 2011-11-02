@@ -220,12 +220,12 @@ def getAppClassname(file) {
         
         def pn = line =~ /.*package\s+([\w\.]+)\s*;.*/
         if(pn) {
-            packageName = pn[0][1]
+            packageName = pn[0][1] + "."
         }
         
         def an = line =~ /.*public\s+class\s+(\w+)\s+extends.+App.*\{/
         if (an) {
-            classname = packageName + "." + an[0][1]
+            classname = packageName + an[0][1]
             println "Found app class name: " + classname
             break
         }
