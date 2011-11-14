@@ -171,9 +171,12 @@ task s4r(type: Jar) {
      * Get fully qualified Java class name and set attribute in Manifest. 
      */
     sourceSets.main.allSource.files.each {  File file ->
-        appClassname = getAppClassname(file)
-        if(appClassname != "") {
-            manifest.mainAttributes('S4-App-Class': appClassname)
+        if (appClassname =="" || appClassname == "UNKNOWN") {
+            // only execute the closure for this file if we haven't already found the app class name
+            appClassname = getAppClassname(file)
+            if(appClassname != "") {
+                manifest.mainAttributes('S4-App-Class': appClassname)
+            }
         }
     }
     
